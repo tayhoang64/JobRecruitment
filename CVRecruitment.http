@@ -1,0 +1,6 @@
+@CVRecruitment_HostAddress = http://localhost:5058
+
+GET {{CVRecruitment_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
