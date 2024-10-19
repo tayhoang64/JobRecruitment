@@ -7,7 +7,7 @@ namespace CVRecruitment.Models;
 
 public partial class User : IdentityUser<int>
 {
-
+    public bool EmailConfirmed { get; set; } = false;
     public string? FullName { get; set; }
 
     public string? Title { get; set; }

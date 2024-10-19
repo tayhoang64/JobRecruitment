@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using CVRecruitment.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.EntityFrameworkCore;
 
 namespace CVRecruitment.Models;
 
@@ -24,6 +28,8 @@ public partial class Company
     public int? OvertimePolicy { get; set; }
 
     public string? Logo { get; set; }
+
+    public bool ConfirmCompany { get; set; } = false;
 
     public virtual ICollection<CompanyImage> CompanyImages { get; set; } = new List<CompanyImage>();
 
