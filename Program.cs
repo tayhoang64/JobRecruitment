@@ -19,6 +19,9 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
 builder.Services.AddDbContext<CvrecruitmentContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -79,18 +82,12 @@ builder.Services.AddAuthentication(options =>
     googleOptions.ClaimActions.MapJsonKey("urn:google:picture", "picture", "url");
     googleOptions.ClaimActions.MapJsonKey("urn:google:locale", "locale", "string");
 })
+.AddCookie()
 .AddFacebook(facebookOptions =>
 {
     facebookOptions.AppId = builder.Configuration["Authentication:Facebook:AppId"];
     facebookOptions.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
-    facebookOptions.Scope.Add("email");
-    facebookOptions.Scope.Add("public_profile");
-    facebookOptions.Fields.Add("email");
-    facebookOptions.Fields.Add("name");
-    facebookOptions.Fields.Add("first_name");
-    facebookOptions.Fields.Add("last_name");
-    facebookOptions.Fields.Add("picture");
-    facebookOptions.Fields.Add("locale");
+    facebookOptions.CallbackPath = "/signin-facebook";
 });
 
 
@@ -123,7 +120,15 @@ if (app.Environment.IsDevelopment())
 }
 app.UseHttpsRedirection();
 
+app.UseRouting();
+
+app.UseMiddleware<JwtMiddleware>();
+
+app.UseAuthentication();
 app.UseAuthorization();
+
+//var configurationValues = builder.Configuration.GetDebugView();
+//var audience = builder.Configuration["JwtSettings:Audience"];
 
 app.MapControllers();
 
