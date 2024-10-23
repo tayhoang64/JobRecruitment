@@ -49,6 +49,7 @@ namespace CVRecruitment.Controllers
             {
                 UserName = model.UserName,
                 Email = model.Email,
+                EmailAddress = model.Email,
                 EmailConfirmed = false,
                 SecurityStamp = Guid.NewGuid().ToString()
             };

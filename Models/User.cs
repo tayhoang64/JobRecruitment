@@ -14,7 +14,7 @@ public partial class User : IdentityUser<int>
 
     public string? EmailAddress { get; set; }
 
-    public int? Phone { get; set; }
+    public string? Phone { get; set; }
 
     public DateTime? DateOfBirth { get; set; }
 
