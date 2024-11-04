@@ -25,6 +25,22 @@ namespace CVRecruitment.Controllers
             _userManager = userManager;
         }
 
+        private async Task<(Models.User user, IActionResult result)> CheckCvDecoratorRoleAsync()
+        {
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
+            {
+                return (null, Unauthorized(new { message = "Invalid token" }));
+            }
+            var isCvDecorator = await _userManager.IsInRoleAsync(user, Enums.RoleCVDecorator);
+            if (!isCvDecorator)
+            {
+                return (null, Forbid());
+            }
+            return (user, null);
+        }
+
+
         [HttpGet]
         public async Task<IEnumerable<Template>> GetAll()
         {
@@ -35,16 +51,10 @@ namespace CVRecruitment.Controllers
 
         public async Task<IActionResult> CreateTemplate([FromForm] TemplateViewModel templateViewModel, IFormFile file)
         {
-            var user = (Models.User)HttpContext.Items["User"];
-            if (user == null)
+            var (user, roleCheckResult) = await CheckCvDecoratorRoleAsync();
+            if (roleCheckResult != null) 
             {
-                return Unauthorized(new { message = "Invalid token" });
-            }
-            //check cvdecorator
-            var isCvDecorator = await _userManager.IsInRoleAsync(user, Enums.RoleCVDecorator);
-            if (!isCvDecorator)
-            {
-                return Forbid();
+                return roleCheckResult;
             }
 
             var template = new Template
@@ -69,19 +79,13 @@ namespace CVRecruitment.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTemplate(int id, [FromForm] TemplateViewModel templateViewModel, IFormFile? file)
         {
-            var user = (Models.User)HttpContext.Items["User"];
-            if (user == null)
+            var (user, roleCheckResult) = await CheckCvDecoratorRoleAsync();
+            if (roleCheckResult != null)
             {
-                return Unauthorized(new { message = "Invalid token" });
-            }
-            //check cvdecorator
-            var isCvDecorator = await _userManager.IsInRoleAsync(user, Enums.RoleCVDecorator);
-            if (!isCvDecorator)
-            {
-                return Forbid();
+                return roleCheckResult;
             }
 
-            
+
             var template = await _context.Templates.FindAsync(id);
             if (template == null)
             {
@@ -114,16 +118,10 @@ namespace CVRecruitment.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTemplate(int id)
         {
-            var user = (Models.User)HttpContext.Items["User"];
-            if (user == null)
+            var (user, roleCheckResult) = await CheckCvDecoratorRoleAsync();
+            if (roleCheckResult != null)
             {
-                return Unauthorized(new { message = "Invalid token" });
-            }
-            //check cvdecorator
-            var isCvDecorator = await _userManager.IsInRoleAsync(user, Enums.RoleCVDecorator);
-            if (!isCvDecorator)
-            {
-                return Forbid();
+                return roleCheckResult;
             }
             var template = await _context.Templates.FindAsync(id);
             if (template.UploadedBy != user.Id)
