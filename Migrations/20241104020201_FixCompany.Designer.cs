@@ -4,6 +4,7 @@ using CVRecruitment.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CVRecruitment.Migrations
 {
     [DbContext(typeof(CvrecruitmentContext))]
-    partial class CvrecruitmentContextModelSnapshot : ModelSnapshot
+    [Migration("20241104020201_FixCompany")]
+    partial class FixCompany
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -111,9 +114,6 @@ namespace CVRecruitment.Migrations
                     b.Property<string>("EmailCompany")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("EmailOwner")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Hotline")
                         .HasColumnType("nvarchar(max)");
 
@@ -124,6 +124,9 @@ namespace CVRecruitment.Migrations
 
                     b.Property<int?>("OvertimePolicy")
                         .HasColumnType("int");
+
+                    b.Property<string>("Password")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Website")
                         .HasColumnType("nvarchar(max)");

@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using CVRecruitment.ViewModels;
+using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
 
 namespace CVRecruitment.Controllers
 {
@@ -16,12 +18,16 @@ namespace CVRecruitment.Controllers
         private readonly IConfiguration _configuration;
         private readonly CvrecruitmentContext _context;
         private readonly Cloudinary _cloudinary;
+        private readonly UserManager<User> _userManager;
+        private readonly CloudinaryService _cloudinaryService;
 
-        public CompanyController(IConfiguration configuration, CvrecruitmentContext context, Cloudinary cloudinary)
+        public CompanyController(IConfiguration configuration, CvrecruitmentContext context, Cloudinary cloudinary, UserManager<User> userManager, CloudinaryService cloudinaryService)
         {
             _configuration = configuration;
             _context = context;
             _cloudinary = cloudinary;
+            _userManager = userManager;
+            _cloudinaryService = cloudinaryService;
         }
 
         [HttpGet]
@@ -33,7 +39,7 @@ namespace CVRecruitment.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var company = _context.Companies.FirstOrDefault(c => c.CompanyId == id && c.ConfirmCompany == true);
+            var company = await _context.Companies.Include(c => c.CompanyImages).FirstOrDefaultAsync(c => c.CompanyId == id && c.ConfirmCompany == true);
             if(company == null)
             {
                 return NotFound("Not found or haven't been confirm yet");
@@ -42,65 +48,172 @@ namespace CVRecruitment.Controllers
             return Ok(company);
         }
 
-        [HttpPost]
-        [Consumes("multipart/form-data")]
-        public async Task<ActionResult<Company>> SignUpCompany(
-                                         Company company,
-                                         IFormFile logo,
-                                         IFormFile[] companyImages) 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> AcceptCompany(int id)
         {
-            Company NewCompany = new Company()
+            //check login
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
             {
-                CompanyName = company.CompanyName,
-                Address = company.Address,
-                Description = company.Description,
-                CompanyType = company.CompanyType,
-                CompanySize = company.CompanySize,
-                CompanyCountry = company.CompanyCountry,
-                WorkingDay = company.WorkingDay,
-                OvertimePolicy = company.OvertimePolicy,
-                ConfirmCompany = false
-            };
-            if(logo != null)
+                return Unauthorized(new { message = "Invalid token" });
+            }
+            //check admin
+            var isAdmin = await _userManager.IsInRoleAsync(user, Enums.RoleAdmin);
+            if (!isAdmin)
             {
-                NewCompany.Logo = await UploadToStorage(logo);
+                return Forbid();
             }
 
-            if (companyImages != null && companyImages.Length > 0)
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
+            if (company == null)
             {
-                foreach (var image in companyImages)
-                {
-                    var imageUrl = await UploadToStorage(image);
-                    var companyImage = new CompanyImage { File = imageUrl };
-                    NewCompany.CompanyImages.Add(companyImage);
-                }
+                return NotFound("Company not found");
             }
-            _context.Companies.Add(NewCompany);
-            await _context.SaveChangesAsync();
+            if (company.ConfirmCompany == true)
+            {
+                return NotFound("This company has been accepted already");
+            }
+            company.ConfirmCompany = true;
+            _context.SaveChanges();
+
+            //Add CompanyOwner role
+            var owner = await _userManager.FindByEmailAsync(company.EmailOwner);
+            // Get the user's current roles
+            var currentRoles = await _userManager.GetRolesAsync(owner);
+
+            // Remove the user from all current roles
+            await _userManager.RemoveFromRolesAsync(owner, currentRoles);
+
+            // Add the user to the new role
+            var result = await _userManager.AddToRoleAsync(owner, Enums.RoleCompanyOwner);
+
             return Ok(company);
         }
 
-        private async Task<string> UploadToStorage(IFormFile file)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> RejectCompany(int id)
         {
-            using (var stream = file.OpenReadStream())
+            //check login
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
             {
-                var uploadParams = new ImageUploadParams()
-                {
-                    File = new FileDescription(file.FileName, stream),
-                    Transformation = new Transformation().Crop("fill").Gravity("center")
-                };
+                return Unauthorized(new { message = "Invalid token" });
+            }
+            //check admin
+            var isAdmin = await _userManager.IsInRoleAsync(user, Enums.RoleAdmin);
+            if (!isAdmin)
+            {
+                return Forbid();
+            }
 
-                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
+            if (company == null)
+            {
+                return NotFound("Company not found");
+            }
+            var companyImages = await _context.CompanyImages.Where(i => i.CompanyId == company.CompanyId).ToListAsync();
+            _context.CompanyImages.RemoveRange(companyImages);
+            _context.SaveChanges();
+            _context.Companies.Remove(company);
+            _context.SaveChanges();
+            return Ok(new { message = "deleted successfully" });
+        }
 
-                if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK)
+        [HttpGet("accepted")]
+        public async Task<IEnumerable<Company>> GetAcceptedCompanies()
+        {
+            return await _context.Companies.Where(c => c.ConfirmCompany == true).ToListAsync();
+        }
+
+        [HttpGet("pending")]
+        public async Task<IEnumerable<Company>> GetPendingCompanies()
+        {
+            return await _context.Companies.Where(c => c.ConfirmCompany == false).ToListAsync();
+        }
+
+        [HttpPost]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<Company>> SignUpCompany(CompanyViewModel companyViewModel)
+        {
+            //Check
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(companyViewModel.EmailOwner);
+            if (existingUser == null)
+            {
+                return BadRequest(new { message = "EmailOwner does not exist in the system." });
+            }
+            //Create
+            Company NewCompany = new Company()
+            {
+                CompanyName = companyViewModel.CompanyName,
+                Address = companyViewModel.Address,
+                Description = companyViewModel.Description,
+                CompanyType = companyViewModel.CompanyType,
+                CompanySize = companyViewModel.CompanySize,
+                CompanyCountry = companyViewModel.CompanyCountry,
+                WorkingDay = companyViewModel.WorkingDay,
+                OvertimePolicy = companyViewModel.OvertimePolicy,
+                EmailCompany = companyViewModel.EmailCompany,
+                EmailOwner = companyViewModel.EmailOwner,
+                ConfirmCompany = false
+            };
+            if (companyViewModel.Logo != null)
+            {
+                try
                 {
-                    return uploadResult.SecureUrl.ToString();
+                    NewCompany.Logo = await _cloudinaryService.UploadImageAsync(companyViewModel.Logo, Enums.Avatars);
                 }
-                else
+                catch (Exception ex)
                 {
-                    throw new Exception("Upload failed: " + uploadResult.Error.Message);
+                    return StatusCode(500, $"Image upload failed: {ex.Message}");
                 }
             }
+
+            _context.Companies.Add(NewCompany);
+            await _context.SaveChangesAsync();
+
+            if (companyViewModel.CompanyImages != null && companyViewModel.CompanyImages.Length > 0)
+            {
+                foreach (var image in companyViewModel.CompanyImages)
+                {
+                    string imgUrl;
+                    try
+                    {
+                        imgUrl = await _cloudinaryService.UploadImageAsync(image, Enums.CompanyImages);
+                    }
+                    catch (Exception ex)
+                    {
+                        return StatusCode(500, $"Image upload failed: {ex.Message}");
+                    }
+                    var companyImage = new CompanyImage { File = imgUrl, CompanyId = NewCompany.CompanyId };
+                    NewCompany.CompanyImages.Add(companyImage);
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            var responseCompany = new
+            {
+                NewCompany.CompanyName,
+                NewCompany.Address,
+                NewCompany.Description,
+                NewCompany.CompanyType,
+                NewCompany.CompanySize,
+                NewCompany.CompanyCountry,
+                NewCompany.WorkingDay,
+                NewCompany.OvertimePolicy,
+                NewCompany.Logo,
+                NewCompany.EmailCompany,
+                NewCompany.EmailOwner,
+                CompanyImages = NewCompany.CompanyImages.Select(ci => new { ci.File })
+            };
+
+            return Ok(responseCompany);
         }
+
     }
 }

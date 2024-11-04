@@ -9,13 +9,17 @@ using System.Text;
 using CVRecruitment.Services;
 using Microsoft.AspNetCore.Authentication;
 using CloudinaryDotNet;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 
 // Add services to the container.
 builder.Services.AddTransient<IEmailService, EmailService>();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+}); ;
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -90,6 +94,8 @@ builder.Services.AddAuthentication(options =>
     facebookOptions.CallbackPath = "/signin-facebook";
 });
 
+// Register CloudinaryService
+builder.Services.AddScoped<CloudinaryService>();
 
 var app = builder.Build();
 

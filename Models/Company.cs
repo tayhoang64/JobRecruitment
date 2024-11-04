@@ -27,9 +27,17 @@ public partial class Company
 
     public int? OvertimePolicy { get; set; }
 
+    public string? Hotline { get; set; }
+
+    public string? Website { get; set; }
+
     public string? Logo { get; set; }
 
     public bool ConfirmCompany { get; set; } = false;
+
+    public string? EmailCompany { get; set; }
+
+    public string? EmailOwner { get; set; }
 
     public virtual ICollection<CompanyImage> CompanyImages { get; set; } = new List<CompanyImage>();
 

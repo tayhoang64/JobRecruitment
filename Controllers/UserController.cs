@@ -59,6 +59,7 @@ namespace CVRecruitment.Controllers
             return Ok(findUser);
         }
 
+        //-------------------------------------------------------
         private string? CheckUserInfo(UpdateInfoModel model)
         {
             model.FullName = string.IsNullOrWhiteSpace(model.FullName) ? null : model.FullName;
