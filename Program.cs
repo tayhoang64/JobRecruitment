@@ -30,6 +30,8 @@ builder.Services.AddDbContext<CvrecruitmentContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<CloudinaryService>();
 var cloudinaryAccount = new Account(
     builder.Configuration["Cloudinary:CloudName"],
     builder.Configuration["Cloudinary:ApiKey"],
@@ -94,9 +96,13 @@ builder.Services.AddAuthentication(options =>
     facebookOptions.CallbackPath = "/signin-facebook";
 });
 
+<<<<<<< HEAD
 // Register CloudinaryService
 builder.Services.AddScoped<CloudinaryService>();
 
+=======
+builder.Services.AddScoped<CloudinaryService>();
+>>>>>>> 98b71f89feea4a48f0109cf325b83bf9d4d368d4
 var app = builder.Build();
 
 app.UseCors("AllowAll");

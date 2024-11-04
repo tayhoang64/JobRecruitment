@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CVRecruitment.ViewModels;
-using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
+using System.Collections;
 
 namespace CVRecruitment.Controllers
 {
@@ -17,17 +17,15 @@ namespace CVRecruitment.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly CvrecruitmentContext _context;
-        private readonly Cloudinary _cloudinary;
-        private readonly UserManager<User> _userManager;
         private readonly CloudinaryService _cloudinaryService;
+        private readonly UserManager<User> _userManager;
 
-        public CompanyController(IConfiguration configuration, CvrecruitmentContext context, Cloudinary cloudinary, UserManager<User> userManager, CloudinaryService cloudinaryService)
+        public CompanyController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager)
         {
             _configuration = configuration;
             _context = context;
-            _cloudinary = cloudinary;
-            _userManager = userManager;
             _cloudinaryService = cloudinaryService;
+            _userManager = userManager;
         }
 
         [HttpGet]
@@ -36,117 +34,12 @@ namespace CVRecruitment.Controllers
             return await _context.Companies.ToListAsync();
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            var company = await _context.Companies.Include(c => c.CompanyImages).FirstOrDefaultAsync(c => c.CompanyId == id && c.ConfirmCompany == true);
-            if(company == null)
-            {
-                return NotFound("Not found or haven't been confirm yet");
-            }
-
-            return Ok(company);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> AcceptCompany(int id)
-        {
-            //check login
-            var user = (Models.User)HttpContext.Items["User"];
-            if (user == null)
-            {
-                return Unauthorized(new { message = "Invalid token" });
-            }
-            //check admin
-            var isAdmin = await _userManager.IsInRoleAsync(user, Enums.RoleAdmin);
-            if (!isAdmin)
-            {
-                return Forbid();
-            }
-
-            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
-            if (company == null)
-            {
-                return NotFound("Company not found");
-            }
-            if (company.ConfirmCompany == true)
-            {
-                return NotFound("This company has been accepted already");
-            }
-            company.ConfirmCompany = true;
-            _context.SaveChanges();
-
-            //Add CompanyOwner role
-            var owner = await _userManager.FindByEmailAsync(company.EmailOwner);
-            // Get the user's current roles
-            var currentRoles = await _userManager.GetRolesAsync(owner);
-
-            // Remove the user from all current roles
-            await _userManager.RemoveFromRolesAsync(owner, currentRoles);
-
-            // Add the user to the new role
-            var result = await _userManager.AddToRoleAsync(owner, Enums.RoleCompanyOwner);
-
-            return Ok(company);
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> RejectCompany(int id)
-        {
-            //check login
-            var user = (Models.User)HttpContext.Items["User"];
-            if (user == null)
-            {
-                return Unauthorized(new { message = "Invalid token" });
-            }
-            //check admin
-            var isAdmin = await _userManager.IsInRoleAsync(user, Enums.RoleAdmin);
-            if (!isAdmin)
-            {
-                return Forbid();
-            }
-
-            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
-            if (company == null)
-            {
-                return NotFound("Company not found");
-            }
-            var companyImages = await _context.CompanyImages.Where(i => i.CompanyId == company.CompanyId).ToListAsync();
-            _context.CompanyImages.RemoveRange(companyImages);
-            _context.SaveChanges();
-            _context.Companies.Remove(company);
-            _context.SaveChanges();
-            return Ok(new { message = "deleted successfully" });
-        }
-
-        [HttpGet("accepted")]
-        public async Task<IEnumerable<Company>> GetAcceptedCompanies()
-        {
-            return await _context.Companies.Where(c => c.ConfirmCompany == true).ToListAsync();
-        }
-
-        [HttpGet("pending")]
-        public async Task<IEnumerable<Company>> GetPendingCompanies()
-        {
-            return await _context.Companies.Where(c => c.ConfirmCompany == false).ToListAsync();
-        }
-
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<Company>> SignUpCompany(CompanyViewModel companyViewModel)
         {
             //Check
-            var user = (Models.User)HttpContext.Items["User"];
-            if (user == null)
-            {
-                return Unauthorized(new { message = "Invalid token" });
-            }
 
-            var existingUser = await _userManager.FindByEmailAsync(companyViewModel.EmailOwner);
-            if (existingUser == null)
-            {
-                return BadRequest(new { message = "EmailOwner does not exist in the system." });
-            }
             //Create
             Company NewCompany = new Company()
             {
@@ -158,8 +51,6 @@ namespace CVRecruitment.Controllers
                 CompanyCountry = companyViewModel.CompanyCountry,
                 WorkingDay = companyViewModel.WorkingDay,
                 OvertimePolicy = companyViewModel.OvertimePolicy,
-                EmailCompany = companyViewModel.EmailCompany,
-                EmailOwner = companyViewModel.EmailOwner,
                 ConfirmCompany = false
             };
             if (companyViewModel.Logo != null)
@@ -207,12 +98,93 @@ namespace CVRecruitment.Controllers
                 NewCompany.WorkingDay,
                 NewCompany.OvertimePolicy,
                 NewCompany.Logo,
-                NewCompany.EmailCompany,
-                NewCompany.EmailOwner,
                 CompanyImages = NewCompany.CompanyImages.Select(ci => new { ci.File })
             };
 
             return Ok(responseCompany);
+        }
+
+        [HttpGet("accepted-company")]
+        public async Task<IEnumerable<Company>> GetAcceptedCompanies()
+        {
+            return _context.Companies.Where(c => c.ConfirmCompany == true);
+        }
+
+        [HttpGet("pending-company")]
+        public async Task<IEnumerable<Company>> GetPendingCompanies()
+        {
+            return _context.Companies.Where(c => c.ConfirmCompany == false);
+        }
+
+        [HttpPut("allow-company/{id}")]
+        public async Task<ActionResult<Company>> AllowCompany(int id)
+        {
+            //check login
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null) return Unauthorized(new { message = "Invalid token" });
+
+            //check admin
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+            if (!isAdmin)
+            {
+                return Forbid("You do not have permission to perform this action.");
+            }
+
+            //find company
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id && c.ConfirmCompany == false);
+            if (company == null)
+            {
+                return NotFound("Company not found or be accepted.");
+            }
+
+            //set company
+            company.ConfirmCompany = true;
+            _context.Companies.Update(company);
+            await _context.SaveChangesAsync();
+
+            return Ok(company);
+        }
+
+        [HttpDelete("reject-company/{id}")]
+        public async Task<ActionResult> RejectCompany(int id)
+        {
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null) return Unauthorized(new { message = "Invalid token" });
+
+            // Check if user is admin
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+            if (!isAdmin)
+            {
+                return Forbid("You do not have permission to perform this action.");
+            }
+
+            // 1. Find company that has not been confirmed
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
+            if (company == null)
+            {
+                return NotFound("Company not found");
+            }
+
+            // Remove associated company images directly from the database
+            var companyImages = await _context.CompanyImages.Where(c => c.CompanyId == company.CompanyId).ToListAsync();
+            _context.CompanyImages.RemoveRange(companyImages);
+
+            // Save changes for image deletions
+            await _context.SaveChangesAsync();
+
+            // 2. Delete the company
+            _context.Companies.Remove(company);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Deleted Successfully" }); 
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Company>> GetCompany(int id)
+        {
+            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
+            if (company == null) return NotFound(new { error = "Not Found" });
+            return Ok(company);
         }
 
     }
