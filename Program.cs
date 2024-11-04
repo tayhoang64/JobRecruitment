@@ -96,13 +96,7 @@ builder.Services.AddAuthentication(options =>
     facebookOptions.CallbackPath = "/signin-facebook";
 });
 
-<<<<<<< HEAD
-// Register CloudinaryService
 builder.Services.AddScoped<CloudinaryService>();
-
-=======
-builder.Services.AddScoped<CloudinaryService>();
->>>>>>> 98b71f89feea4a48f0109cf325b83bf9d4d368d4
 var app = builder.Build();
 
 app.UseCors("AllowAll");
