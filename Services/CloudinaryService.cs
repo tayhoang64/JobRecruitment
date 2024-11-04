@@ -34,5 +34,23 @@ namespace CVRecruitment.Services
             var deleteParams = new DeletionParams(publicId);
             await _cloudinary.DestroyAsync(deleteParams);
         }
+
+        public async Task<string> UploadHtmlAsync(IFormFile file, string folder)
+        {
+            if (file == null || file.Length == 0 || file.ContentType != "text/html")
+            {
+                throw new ArgumentException("Invalid HTML file.");
+            }
+
+            var uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(file.FileName, file.OpenReadStream()),
+                Folder = "JobRecruitment/" + folder,
+            };
+
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            return uploadResult.SecureUrl.ToString();
+        }
+        
     }
 }

@@ -15,7 +15,8 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 
 // Add services to the container.
 builder.Services.AddTransient<IEmailService, EmailService>();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+            options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve); ;
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -26,6 +27,8 @@ builder.Services.AddDbContext<CvrecruitmentContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<CloudinaryService>();
 var cloudinaryAccount = new Account(
     builder.Configuration["Cloudinary:CloudName"],
     builder.Configuration["Cloudinary:ApiKey"],
@@ -90,7 +93,7 @@ builder.Services.AddAuthentication(options =>
     facebookOptions.CallbackPath = "/signin-facebook";
 });
 
-
+builder.Services.AddScoped<CloudinaryService>();
 var app = builder.Build();
 
 app.UseCors("AllowAll");
