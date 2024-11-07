@@ -51,6 +51,23 @@ namespace CVRecruitment.Services
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
             return uploadResult.SecureUrl.ToString();
         }
-        
+        public async Task<string> SaveFileWithExtension(string extension, string folder, string content)
+        {
+            var fileBytes = System.Text.Encoding.UTF8.GetBytes(content);
+            using var stream = new MemoryStream(fileBytes);
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription("file." + extension, stream),
+                Folder = folder
+            };
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                return uploadResult.Url.ToString();
+            }
+
+            throw new Exception("File upload failed");
+        }
+
     }
 }
