@@ -40,6 +40,7 @@ public partial class CvrecruitmentContext : IdentityDbContext<User, IdentityRole
     public virtual DbSet<Template> Templates { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<Staff> Staffs { get; set; }
 
     public virtual DbSet<WorkExperience> WorkExperiences { get; set; }
 

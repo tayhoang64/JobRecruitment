@@ -402,6 +402,28 @@ namespace CVRecruitment.Migrations
                     b.ToTable("Skills");
                 });
 
+            modelBuilder.Entity("CVRecruitment.Models.Staff", b =>
+                {
+                    b.Property<int>("StaffId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StaffId"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("StaffId");
+
+                    b.ToTable("Staffs");
+                });
+
             modelBuilder.Entity("CVRecruitment.Models.Template", b =>
                 {
                     b.Property<int>("TemplateId")

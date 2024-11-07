@@ -104,6 +104,86 @@ namespace CVRecruitment.Controllers
             return Ok(responseCompany);
         }
 
+        [HttpPut("{id}")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<Company>> UpdateCompany(int id, CompanyViewModel companyViewModel)
+        {
+            //Check
+            //check login
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null) return Unauthorized(new { message = "Invalid token" });
+
+            var company = _context.Companies.FirstOrDefault(c => c.CompanyId == id && c.ConfirmCompany == true);
+            if(company == null)
+            {
+                return NotFound("company can not found or be rejected");
+            }
+
+            //check owner
+            var isOwner = company.EmailOwner == user.Email;
+            if (!isOwner)
+            {
+                return Forbid();
+            }
+            //Update
+            company.CompanyName = companyViewModel.CompanyName;
+            company.Address = companyViewModel.Address;
+            company.Description = companyViewModel.Description;
+            company.CompanyType = companyViewModel.CompanyType;
+            company.CompanySize = companyViewModel.CompanySize;
+            company.CompanyCountry = companyViewModel.CompanyCountry;
+            company.WorkingDay = companyViewModel.WorkingDay;
+            company.OvertimePolicy = companyViewModel.OvertimePolicy;
+            if (companyViewModel.Logo != null)
+            {
+                try
+                {
+                    company.Logo = await _cloudinaryService.UploadImageAsync(companyViewModel.Logo, Enums.Avatars);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, $"Image upload failed: {ex.Message}");
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            if (companyViewModel.CompanyImages != null && companyViewModel.CompanyImages.Length > 0)
+            {
+                foreach (var image in companyViewModel.CompanyImages)
+                {
+                    string imgUrl;
+                    try
+                    {
+                        imgUrl = await _cloudinaryService.UploadImageAsync(image, Enums.CompanyImages);
+                    }
+                    catch (Exception ex)
+                    {
+                        return StatusCode(500, $"Image upload failed: {ex.Message}");
+                    }
+                    var companyImage = new CompanyImage { File = imgUrl, CompanyId = company.CompanyId };
+                    company.CompanyImages.Add(companyImage);
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            var responseCompany = new
+            {
+                company.CompanyName,
+                company.Address,
+                company.Description,
+                company.CompanyType,
+                company.CompanySize,
+                company.CompanyCountry,
+                company.WorkingDay,
+                company.OvertimePolicy,
+                company.Logo,
+                CompanyImages = company.CompanyImages.Select(ci => new { ci.File })
+            };
+
+            return Ok(responseCompany);
+        }
+
         [HttpGet("accepted-company")]
         public async Task<IEnumerable<Company>> GetAcceptedCompanies()
         {
@@ -182,7 +262,7 @@ namespace CVRecruitment.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Company>> GetCompany(int id)
         {
-            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
+            var company = await _context.Companies.Include(c => c.CompanyImages).FirstOrDefaultAsync(c => c.CompanyId == id);
             if (company == null) return NotFound(new { error = "Not Found" });
             return Ok(company);
         }

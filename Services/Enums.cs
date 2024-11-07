@@ -9,6 +9,7 @@
         public static string RoleAdmin = "ADMIN";
         public static string RoleCVDecorator = "CVDECORATOR";
         public static string RoleCompanyOwner = "COMPANYOWNER";
-
+        public static int StaffContentCreator = 0;
+        public static int StaffHR = 1;
     }
 }
