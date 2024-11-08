@@ -10,29 +10,30 @@ namespace CVRecruitment.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "EmailCompany",
-                table: "Company");
-
-            migrationBuilder.RenameColumn(
-                name: "Password",
-                table: "Company",
-                newName: "EmailOwner");
-        }
-
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.RenameColumn(
-                name: "EmailOwner",
-                table: "Company",
-                newName: "Password");
-
             migrationBuilder.AddColumn<string>(
                 name: "EmailCompany",
                 table: "Company",
                 type: "nvarchar(max)",
                 nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "EmailOwner",
+                table: "Company",
+                type: "nvarchar(max)",
+                nullable: true);
+
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "EmailCompany",
+                table: "Company");
+
+            migrationBuilder.DropColumn(
+                name: "EmailOwner",
+                table: "Company");
         }
     }
 }
