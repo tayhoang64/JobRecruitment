@@ -4,6 +4,7 @@ using CVRecruitment.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CVRecruitment.Migrations
 {
     [DbContext(typeof(CvrecruitmentContext))]
-    partial class CvrecruitmentContextModelSnapshot : ModelSnapshot
+    [Migration("20241107085439_T4")]
+    partial class T4
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -256,9 +259,6 @@ namespace CVRecruitment.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("JobId"));
 
-                    b.Property<int>("CompanyId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasMaxLength(255)
                         .IsUnicode(false)
@@ -292,9 +292,6 @@ namespace CVRecruitment.Migrations
                     b.Property<bool>("Status")
                         .HasColumnType("bit");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
                     b.Property<string>("WorkStyle")
                         .HasMaxLength(255)
                         .IsUnicode(false)
@@ -302,8 +299,6 @@ namespace CVRecruitment.Migrations
 
                     b.HasKey("JobId")
                         .HasName("PK__Job__056690C2C636F866");
-
-                    b.HasIndex("CompanyId");
 
                     b.ToTable("Job", (string)null);
                 });
@@ -861,17 +856,6 @@ namespace CVRecruitment.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CVRecruitment.Models.Job", b =>
-                {
-                    b.HasOne("CVRecruitment.Models.Company", "Company")
-                        .WithMany("Jobs")
-                        .HasForeignKey("CompanyId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Certifica__UserI__5629CDkug");
-
-                    b.Navigation("Company");
-                });
-
             modelBuilder.Entity("CVRecruitment.Models.MySkill", b =>
                 {
                     b.HasOne("CVRecruitment.Models.Skill", "Skill")
@@ -1016,8 +1000,6 @@ namespace CVRecruitment.Migrations
             modelBuilder.Entity("CVRecruitment.Models.Company", b =>
                 {
                     b.Navigation("CompanyImages");
-
-                    b.Navigation("Jobs");
                 });
 
             modelBuilder.Entity("CVRecruitment.Models.Job", b =>

@@ -207,6 +207,11 @@ public partial class CvrecruitmentContext : IdentityDbContext<User, IdentityRole
                 .HasMaxLength(255)
                 .IsUnicode(false);
 
+            entity.HasOne(d => d.Company).WithMany(p => p.Jobs)
+                .HasForeignKey(d => d.CompanyId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Certifica__UserI__5629CDkug");
+
             entity.HasMany(d => d.Skills).WithMany(p => p.Jobs)
                 .UsingEntity<Dictionary<string, object>>(
                     "JobSkill",

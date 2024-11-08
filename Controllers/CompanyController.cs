@@ -51,6 +51,8 @@ namespace CVRecruitment.Controllers
                 CompanyCountry = companyViewModel.CompanyCountry,
                 WorkingDay = companyViewModel.WorkingDay,
                 OvertimePolicy = companyViewModel.OvertimePolicy,
+                EmailCompany = companyViewModel.EmailCompany,
+                EmailOwner = companyViewModel.EmailOwner,
                 ConfirmCompany = false
             };
             if (companyViewModel.Logo != null)
@@ -97,6 +99,8 @@ namespace CVRecruitment.Controllers
                 NewCompany.CompanyCountry,
                 NewCompany.WorkingDay,
                 NewCompany.OvertimePolicy,
+                NewCompany.EmailCompany,
+                NewCompany.EmailOwner,
                 NewCompany.Logo,
                 CompanyImages = NewCompany.CompanyImages.Select(ci => new { ci.File })
             };
@@ -134,6 +138,8 @@ namespace CVRecruitment.Controllers
             company.CompanyCountry = companyViewModel.CompanyCountry;
             company.WorkingDay = companyViewModel.WorkingDay;
             company.OvertimePolicy = companyViewModel.OvertimePolicy;
+            company.EmailCompany = companyViewModel.EmailCompany;
+            company.EmailOwner = companyViewModel.EmailOwner;
             if (companyViewModel.Logo != null)
             {
                 try
@@ -178,6 +184,8 @@ namespace CVRecruitment.Controllers
                 company.WorkingDay,
                 company.OvertimePolicy,
                 company.Logo,
+                company.EmailCompany,
+                company.EmailOwner,
                 CompanyImages = company.CompanyImages.Select(ci => new { ci.File })
             };
 

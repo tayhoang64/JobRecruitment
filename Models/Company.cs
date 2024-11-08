@@ -42,4 +42,5 @@ public partial class Company
     public virtual ICollection<CompanyImage> CompanyImages { get; set; } = new List<CompanyImage>();
 
     public virtual ICollection<Skill> Skills { get; set; } = new List<Skill>();
+    public virtual ICollection<Job> Jobs { get; set; } = new List<Job>();
 }
