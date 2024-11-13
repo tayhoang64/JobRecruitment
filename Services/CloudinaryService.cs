@@ -22,7 +22,8 @@ namespace CVRecruitment.Services
             var uploadParams = new ImageUploadParams()
             {
                 File = new FileDescription(file.FileName, file.OpenReadStream()),
-                Folder = "JobRecruitment/" + folder 
+                Folder = "JobRecruitment/" + folder,
+                AccessMode = "public"
             };
 
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
@@ -46,6 +47,7 @@ namespace CVRecruitment.Services
             {
                 File = new FileDescription(file.FileName, file.OpenReadStream()),
                 Folder = "JobRecruitment/" + folder,
+                AccessMode = "public"
             };
 
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
@@ -58,7 +60,8 @@ namespace CVRecruitment.Services
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription("file." + extension, stream),
-                Folder = folder
+                Folder = folder,
+                AccessMode = "public"
             };
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
             if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK)

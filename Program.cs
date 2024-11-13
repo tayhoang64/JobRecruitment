@@ -10,6 +10,7 @@ using CVRecruitment.Services;
 using Microsoft.AspNetCore.Authentication;
 using CloudinaryDotNet;
 using System.Text.Json.Serialization;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -95,7 +96,33 @@ builder.Services.AddAuthentication(options =>
     facebookOptions.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
     facebookOptions.CallbackPath = "/signin-facebook";
 });
-
+builder.Services.AddSwaggerGen(option =>
+{
+    option.SwaggerDoc("v1", new OpenApiInfo { Title = "JobRecruitment", Version = "v1" });
+    option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Please enter a valid token",
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        BearerFormat = "JWT",
+        Scheme = "Bearer"
+    });
+    option.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type=ReferenceType.SecurityScheme,
+                    Id="Bearer"
+                }
+            },
+            new string[]{}
+        }
+    });
+});
 builder.Services.AddScoped<CloudinaryService>();
 var app = builder.Build();
 
