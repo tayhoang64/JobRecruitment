@@ -39,7 +39,11 @@ namespace CVRecruitment.Controllers
         public async Task<ActionResult<Company>> SignUpCompany(CompanyViewModel companyViewModel)
         {
             //Check
-
+            var validationResult = ValidateCompanyViewModel(companyViewModel);
+            if (!string.IsNullOrEmpty(validationResult))
+            {
+                return BadRequest(validationResult);
+            }
             //Create
             Company NewCompany = new Company()
             {
@@ -108,11 +112,18 @@ namespace CVRecruitment.Controllers
             return Ok(responseCompany);
         }
 
+        
+
         [HttpPut("{id}")]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<Company>> UpdateCompany(int id, CompanyViewModel companyViewModel)
         {
             //Check
+            var validationResult = ValidateCompanyViewModel(companyViewModel);
+            if (!string.IsNullOrEmpty(validationResult))
+            {
+                return BadRequest(validationResult);
+            }
             //check login
             var user = (Models.User)HttpContext.Items["User"];
             if (user == null) return Unauthorized(new { message = "Invalid token" });
@@ -275,5 +286,53 @@ namespace CVRecruitment.Controllers
             return Ok(company);
         }
 
+
+
+        private string ValidateCompanyViewModel(CompanyViewModel companyViewModel)
+        {
+            if (companyViewModel == null)
+            {
+                return "Company information is required.";
+            }
+
+            if (string.IsNullOrEmpty(companyViewModel.CompanyName))
+            {
+                return "CompanyName is required.";
+            }
+
+            if (string.IsNullOrEmpty(companyViewModel.Address))
+            {
+                return "Address is required.";
+            }
+
+            if (string.IsNullOrEmpty(companyViewModel.EmailCompany) || !IsValidEmail(companyViewModel.EmailCompany))
+            {
+                return "A valid EmailCompany is required.";
+            }
+
+            if (string.IsNullOrEmpty(companyViewModel.EmailOwner) || !IsValidEmail(companyViewModel.EmailOwner))
+            {
+                return "A valid EmailOwner is required.";
+            }
+
+            if (string.IsNullOrEmpty(companyViewModel.CompanySize) || !int.TryParse(companyViewModel.CompanySize, out int companySize) || companySize <= 0)
+            {
+                return "CompanySize must be a positive integer.";
+            }
+            return null;
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

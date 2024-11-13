@@ -46,7 +46,7 @@ namespace CVRecruitment.Controllers
         [HttpGet]
         public async Task<IEnumerable<Job>> GetAllActiveJobs()
         {
-            return await _context.Jobs.Include(j => j.Company).Include(j => j.Skills).Where(j => DateTime.Now < j.EndDay).ToListAsync();
+            return await _context.Jobs.Include(j => j.Company).Include(j => j.Skills).Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull).ToListAsync();
         }
 
         [HttpPost]
@@ -106,7 +106,7 @@ namespace CVRecruitment.Controllers
                 }
             }
             //owner check
-            var findJob = _context.Jobs.Include(j => j.Skills).FirstOrDefault(j => j.JobId == id && DateTime.Now < j.EndDay);
+            var findJob = _context.Jobs.Include(j => j.Skills).FirstOrDefault(j => j.JobId == id && DateTime.Now < j.EndDay && j.Status != Enums.StatusFull);
             if (findJob == null)
             {
                 return NotFound("Job not found");
@@ -129,6 +129,39 @@ namespace CVRecruitment.Controllers
             return Ok(findJob);
         }
 
+        [HttpPut("set-full/{id}")]
+        public async Task<IActionResult> SetStatusFull(int id, JobViewModel jobViewModel)
+        {
+            //check
+            var (user, check) = await IsHRorContentCreator((int)jobViewModel.CompanyId, Enums.StaffContentCreator);
+            if (check != null)
+            {
+                return check;
+            }
+            var listSkill = new List<Skill>();
+            foreach (var item in _context.Skills)
+            {
+                if (jobViewModel.SkillIds.Contains(item.SkillId))
+                {
+                    listSkill.Add(item);
+                }
+            }
+            //owner check
+            var findJob = _context.Jobs.Include(j => j.Skills).FirstOrDefault(j => j.JobId == id && DateTime.Now < j.EndDay && j.Status != Enums.StatusFull);
+            if (findJob == null)
+            {
+                return NotFound("Job not found");
+            }
+            if (findJob.UserId != user.Id)
+            {
+                return Forbid();
+            }
+            //logic
+            findJob.Status = Enums.StatusFull;
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteJob(int id, JobViewModel jobViewModel)
         {
@@ -147,7 +180,7 @@ namespace CVRecruitment.Controllers
                 }
             }
             //owner check
-            var findJob = _context.Jobs.Include(j => j.Skills).FirstOrDefault(j => j.JobId == id && DateTime.Now < j.EndDay);
+            var findJob = _context.Jobs.Include(j => j.Skills).FirstOrDefault(j => j.JobId == id && DateTime.Now < j.EndDay && j.Status != Enums.StatusFull);
             if (findJob == null)
             {
                 return NotFound("Job not found");
@@ -160,6 +193,49 @@ namespace CVRecruitment.Controllers
             _context.Jobs.Remove(findJob);
             await _context.SaveChangesAsync();
             return Ok();
+        }
+
+        //Name, Salary, Location, Skill, WokExp
+        [HttpGet("search")]
+        public async Task<IEnumerable<Job>> SearchJobs(
+                                    string? jobName = null,
+                                    string? location = null,
+                                    string? salary = null,
+                                    int workExp = 0,
+                                    [FromQuery] List<int> skillIds = null)
+        {
+            var query = _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Skills)
+                .Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(jobName))
+            {
+                query = query.Where(j => j.JobName.Contains(jobName));
+            }
+
+            if (!string.IsNullOrEmpty(location))
+            {
+                query = query.Where(j => j.Location.Contains(location));
+            }
+
+            if (!string.IsNullOrEmpty(salary))
+            {
+                query = query.Where(j => j.Salary.Contains(salary));
+            }
+
+            if (workExp > 0)
+            {
+                query = query.Where(j => j.ExperienceYear >= workExp);
+            }
+
+            if (skillIds != null && skillIds.Any())
+            {
+                query = query.Where(j => j.Skills.Any(s => skillIds.Contains(s.SkillId)));
+            }
+
+            return await query.ToListAsync();
         }
 
 

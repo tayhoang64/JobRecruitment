@@ -4,6 +4,7 @@ using CVRecruitment.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 
 namespace CVRecruitment.Controllers
@@ -56,7 +57,14 @@ namespace CVRecruitment.Controllers
             {
                 return roleCheckResult;
             }
-
+            if (file == null || !file.FileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || file.ContentType != "text/html")
+            {
+                return BadRequest("The file must be a valid HTML file.");
+            }
+            if (string.IsNullOrEmpty(templateViewModel.Title))
+            {
+                return BadRequest("Title is required");
+            }
             var template = new Template
             {
                 Title = templateViewModel.Title,
@@ -68,6 +76,10 @@ namespace CVRecruitment.Controllers
             if (file != null)
             {
                 var fileUrl = await _cloudinaryService.UploadHtmlAsync(file, Enums.Templates);
+                if (string.IsNullOrEmpty(fileUrl))
+                {
+                    return BadRequest("File upload failed. Please try again.");
+                }
                 template.File = fileUrl;
             }
 
@@ -95,19 +107,28 @@ namespace CVRecruitment.Controllers
             {
                 return Forbid();
             }
-
+            if (string.IsNullOrEmpty(templateViewModel.Title))
+            {
+                return BadRequest("Title is required");
+            }
             template.Title = templateViewModel.Title;
             template.LastUpdatedAt = DateTime.UtcNow;
 
             if (file != null)
             {
+                if (!file.FileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || file.ContentType != "text/html")
+                {
+                    return BadRequest("The file must be a valid HTML file.");
+                }
                 if (!string.IsNullOrEmpty(template.File))
                 {
                     await _cloudinaryService.DeleteImageAsync(template.File);
                 }
-
                 var fileUrl = await _cloudinaryService.UploadHtmlAsync(file, Enums.Templates);
-                template.File = fileUrl;
+                if (string.IsNullOrEmpty(fileUrl))
+                {
+                    return BadRequest("File upload failed. Please try again.");
+                }
             }
 
             _context.Entry(template).State = EntityState.Modified;

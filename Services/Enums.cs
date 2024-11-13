@@ -12,6 +12,7 @@
         public static string RoleUser = "USER";
         public static int StaffContentCreator = 0;
         public static int StaffHR = 1;
-
+        public static bool StatusStillRecruit = false;
+        public static bool StatusFull = true; 
     }
 }

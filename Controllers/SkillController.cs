@@ -69,7 +69,15 @@ namespace CVRecruitment.Controllers
             {
                 return BadRequest("No file uploaded.");
             }
+            var fileExtension = Path.GetExtension(model.File.FileName).ToLower();
+            var allowedExtensions = new[] { ".xlsx", ".xls" };
+            var mimeType = model.File.ContentType;
 
+            if (!allowedExtensions.Contains(fileExtension) ||
+                (mimeType != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" && mimeType != "application/vnd.ms-excel"))
+            {
+                return BadRequest("Only Excel files (.xlsx or .xls) are allowed.");
+            }
             try
             {
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -123,7 +131,10 @@ namespace CVRecruitment.Controllers
             {
                 return roleCheckResult;
             }
-
+            if (string.IsNullOrEmpty(updatedSkill.SkillName))
+            {
+                return BadRequest("SkillName is required.");
+            }
             var skill = await _context.Skills.FindAsync(id);
             if (skill == null)
             {
