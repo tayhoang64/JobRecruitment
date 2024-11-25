@@ -29,4 +29,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Public\CVs\" />
+    <Folder Include="Public\Templates\" />
+  </ItemGroup>
+
 </Project>

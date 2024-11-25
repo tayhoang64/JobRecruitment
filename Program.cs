@@ -17,6 +17,7 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 
 // Add services to the container.
 builder.Services.AddTransient<IEmailService, EmailService>();
+builder.Services.AddTransient<FileService>();
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
@@ -127,6 +128,13 @@ builder.Services.AddScoped<CloudinaryService>();
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "Public")),
+    RequestPath = "/public"
+});
 
 using (var scope = app.Services.CreateScope())
 {
