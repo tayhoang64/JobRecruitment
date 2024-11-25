@@ -43,11 +43,66 @@ namespace CVRecruitment.Controllers
             return (null, Forbid());
         }
 
-        [HttpGet]
-        public async Task<IEnumerable<Job>> GetAllActiveJobs()
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetJobById(int id)
         {
-            return await _context.Jobs.Include(j => j.Company).Include(j => j.Skills).Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull).ToListAsync();
+            var job = _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Skills)
+                .FirstOrDefault(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull && j.JobId == id);
+            if(job == null)
+            {
+                return NotFound(new {error = "job not found"});
+            }
+            return Ok(job);
         }
+
+        [HttpGet]
+        public async Task<IEnumerable<JobResponse>> GetAllActiveJobs()
+        {
+            var activeJobs = await _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Skills)
+                .Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull)
+                .ToListAsync();
+
+            var jobs = activeJobs.Select(job => new JobResponse
+            {
+                JobId = job.JobId,
+                JobName = job.JobName,
+                Salary = job.Salary,
+                Location = job.Location,
+                WorkStyle = job.WorkStyle,
+                PostedDay = job.PostedDay,
+                Description = job.Description,
+                EndDay = job.EndDay,
+                ExperienceYear = job.ExperienceYear,
+                RecruitmentCount = job.RecruitmentCount,
+                Status = job.Status,
+                Company = new Company
+                {
+                    CompanyId = job.Company.CompanyId,
+                    CompanyName = job.Company.CompanyName,
+                    Address = job.Company.Address,
+                    Description = job.Company.Description,
+                    CompanyType = job.Company.CompanyType,
+                    CompanySize = job.Company.CompanySize,
+                    CompanyCountry = job.Company.CompanyCountry,
+                    WorkingDay = job.Company.WorkingDay,
+                    OvertimePolicy = job.Company.OvertimePolicy,
+                    Logo = job.Company.Logo,
+                    ConfirmCompany = job.Company.ConfirmCompany,
+                },
+                Skills = job.Skills.Select(skill => new Skill
+                {
+                    SkillId = skill.SkillId,
+                    SkillName = skill.SkillName,
+                }).ToList()
+            });
+
+            return jobs;
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> PostJob(JobViewModel jobViewModel)
@@ -237,6 +292,80 @@ namespace CVRecruitment.Controllers
 
             return await query.ToListAsync();
         }
+
+        [HttpGet("RecommendJob/{jobId}")]
+        public async Task<IEnumerable<JobResponse>> RecommendJob(int jobId)
+        {
+            var currentJob = await _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Skills)
+                .FirstOrDefaultAsync(j => j.JobId == jobId);
+
+            if (currentJob == null)
+            {
+                return Enumerable.Empty<JobResponse>();
+            }
+            decimal? ParseSalary(string? salary)
+            {
+                if (decimal.TryParse(salary, out var parsedSalary))
+                {
+                    return parsedSalary;
+                }
+                return null;
+            }
+            var currentJobSalary = ParseSalary(currentJob.Salary);
+            var recommendedJobs = await _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Skills)
+                .Where(j =>
+                    j.JobId != jobId && 
+                    DateTime.Now < j.EndDay &&
+                    j.Status != Enums.StatusFull &&
+                    j.Location == currentJob.Location &&
+                    j.ExperienceYear == currentJob.ExperienceYear)
+                .ToListAsync();
+            recommendedJobs = recommendedJobs.Where(j =>
+            {
+                var jobSalary = ParseSalary(j.Salary);
+                return !jobSalary.HasValue || (currentJobSalary.HasValue && Math.Abs(jobSalary.Value - currentJobSalary.Value) <= 5000);
+            }).Take(3).ToList();
+            var jobs = recommendedJobs.Select(job => new JobResponse
+            {
+                JobId = job.JobId,
+                JobName = job.JobName,
+                Salary = job.Salary,
+                Location = job.Location,
+                WorkStyle = job.WorkStyle,
+                PostedDay = job.PostedDay,
+                Description = job.Description,
+                EndDay = job.EndDay,
+                ExperienceYear = job.ExperienceYear,
+                RecruitmentCount = job.RecruitmentCount,
+                Status = job.Status,
+                Company = new Company
+                {
+                    CompanyId = job.Company.CompanyId,
+                    CompanyName = job.Company.CompanyName,
+                    Address = job.Company.Address,
+                    Description = job.Company.Description,
+                    CompanyType = job.Company.CompanyType,
+                    CompanySize = job.Company.CompanySize,
+                    CompanyCountry = job.Company.CompanyCountry,
+                    WorkingDay = job.Company.WorkingDay,
+                    OvertimePolicy = job.Company.OvertimePolicy,
+                    Logo = job.Company.Logo,
+                    ConfirmCompany = job.Company.ConfirmCompany,
+                },
+                Skills = job.Skills.Select(skill => new Skill
+                {
+                    SkillId = skill.SkillId,
+                    SkillName = skill.SkillName,
+                }).ToList()
+            });
+
+            return jobs;
+        }
+
 
 
     }

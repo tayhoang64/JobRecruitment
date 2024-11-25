@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CVRecruitment.Migrations
 {
     [DbContext(typeof(CvrecruitmentContext))]
-    [Migration("20241014075532_T2")]
-    partial class T2
+    [Migration("20241125014015_T5")]
+    partial class T5
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -103,10 +103,22 @@ namespace CVRecruitment.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<bool>("ConfirmCompany")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Description")
                         .HasMaxLength(255)
                         .IsUnicode(false)
                         .HasColumnType("varchar(255)");
+
+                    b.Property<string>("EmailCompany")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmailOwner")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Hotline")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Logo")
                         .HasMaxLength(255)
@@ -115,6 +127,9 @@ namespace CVRecruitment.Migrations
 
                     b.Property<int?>("OvertimePolicy")
                         .HasColumnType("int");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("WorkingDay")
                         .HasMaxLength(255)
@@ -244,10 +259,19 @@ namespace CVRecruitment.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("JobId"));
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasMaxLength(255)
                         .IsUnicode(false)
                         .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime?>("EndDay")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ExperienceYear")
+                        .HasColumnType("int");
 
                     b.Property<string>("JobName")
                         .HasMaxLength(255)
@@ -262,8 +286,17 @@ namespace CVRecruitment.Migrations
                     b.Property<DateTime?>("PostedDay")
                         .HasColumnType("datetime");
 
-                    b.Property<double?>("Salary")
-                        .HasColumnType("float");
+                    b.Property<int?>("RecruitmentCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Salary")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.Property<string>("WorkStyle")
                         .HasMaxLength(255)
@@ -272,6 +305,8 @@ namespace CVRecruitment.Migrations
 
                     b.HasKey("JobId")
                         .HasName("PK__Job__056690C2C636F866");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("Job", (string)null);
                 });
@@ -390,6 +425,28 @@ namespace CVRecruitment.Migrations
                     b.ToTable("Skills");
                 });
 
+            modelBuilder.Entity("CVRecruitment.Models.Staff", b =>
+                {
+                    b.Property<int>("StaffId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StaffId"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("StaffId");
+
+                    b.ToTable("Staffs");
+                });
+
             modelBuilder.Entity("CVRecruitment.Models.Template", b =>
                 {
                     b.Property<int>("TemplateId")
@@ -503,8 +560,8 @@ namespace CVRecruitment.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<int?>("Phone")
-                        .HasColumnType("int");
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
@@ -807,6 +864,17 @@ namespace CVRecruitment.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CVRecruitment.Models.Job", b =>
+                {
+                    b.HasOne("CVRecruitment.Models.Company", "Company")
+                        .WithMany("Jobs")
+                        .HasForeignKey("CompanyId")
+                        .IsRequired()
+                        .HasConstraintName("FK__Certifica__UserI__5629CDkug");
+
+                    b.Navigation("Company");
+                });
+
             modelBuilder.Entity("CVRecruitment.Models.MySkill", b =>
                 {
                     b.HasOne("CVRecruitment.Models.Skill", "Skill")
@@ -951,6 +1019,8 @@ namespace CVRecruitment.Migrations
             modelBuilder.Entity("CVRecruitment.Models.Company", b =>
                 {
                     b.Navigation("CompanyImages");
+
+                    b.Navigation("Jobs");
                 });
 
             modelBuilder.Entity("CVRecruitment.Models.Job", b =>
