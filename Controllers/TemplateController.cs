@@ -17,13 +17,15 @@ namespace CVRecruitment.Controllers
         private readonly CvrecruitmentContext _context;
         private readonly CloudinaryService _cloudinaryService;
         private readonly UserManager<User> _userManager;
+        private readonly FileService _fileService;
 
-        public TemplateController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager)
+        public TemplateController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager, FileService fileService)
         {
             _configuration = configuration;
             _context = context;
             _cloudinaryService = cloudinaryService;
             _userManager = userManager;
+            _fileService = fileService;
         }
 
         private async Task<(Models.User user, IActionResult result)> CheckCvDecoratorRoleAsync()
@@ -75,7 +77,7 @@ namespace CVRecruitment.Controllers
 
             if (file != null)
             {
-                var fileUrl = await _cloudinaryService.UploadHtmlAsync(file, Enums.Templates);
+                var fileUrl = await _fileService.UploadHtmlAsync(file, Enums.Templates);
                 if (string.IsNullOrEmpty(fileUrl))
                 {
                     return BadRequest("File upload failed. Please try again.");
@@ -85,7 +87,10 @@ namespace CVRecruitment.Controllers
 
             _context.Templates.Add(template);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetAll), new { id = template.TemplateId }, template);
+            return Ok(new
+            {
+                message = "created template successfully"
+            });
         }
 
         [HttpPut("{id}")]
@@ -122,9 +127,9 @@ namespace CVRecruitment.Controllers
                 }
                 if (!string.IsNullOrEmpty(template.File))
                 {
-                    await _cloudinaryService.DeleteImageAsync(template.File);
+                    _fileService.DeleteFile(Enums.Templates, template.File.Split("/")[^1]);
                 }
-                var fileUrl = await _cloudinaryService.UploadHtmlAsync(file, Enums.Templates);
+                var fileUrl = await _fileService.UploadHtmlAsync(file, Enums.Templates);
                 if (string.IsNullOrEmpty(fileUrl))
                 {
                     return BadRequest("File upload failed. Please try again.");
@@ -133,7 +138,10 @@ namespace CVRecruitment.Controllers
 
             _context.Entry(template).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            return NoContent();
+            return Ok(new
+            {
+                message = "updated template successfully"
+            });
         }
 
         [HttpDelete("{id}")]
@@ -153,19 +161,18 @@ namespace CVRecruitment.Controllers
             {
                 return NotFound(new { message = "Template not found." });
             }
-            var publicId = GetPublicIdFromUrl(template.File); 
-            await _cloudinaryService.DeleteImageAsync(publicId);
+            var result = _fileService.DeleteFile(Enums.Templates, template.File.Split("/")[^1]);
+            if (!result)
+            {
+                return StatusCode(500, "Can't delete file");
+            }
             _context.Templates.Remove(template);
             await _context.SaveChangesAsync();
 
-            return NoContent();
-        }
-
-        private string GetPublicIdFromUrl(string url)
-        {
-            var uri = new Uri(url);
-            var segments = uri.Segments;
-            return segments[segments.Length - 1].Split('.')[0];
+            return Ok(new
+            {
+                message = "deleted template successfully"
+            });
         }
     }
 
