@@ -1,4 +1,5 @@
-﻿using CVRecruitment.Models;
+﻿using CloudinaryDotNet.Actions;
+using CVRecruitment.Models;
 using CVRecruitment.Services;
 using CVRecruitment.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -26,8 +27,32 @@ namespace CVRecruitment.Controllers
             _userManager = userManager;
         }
 
+        [HttpGet]
+        public async Task<IEnumerable<UserViewModel>> GetUsers()
+        {
+            var users = _userManager.Users.ToList();
+            var usersWithRoles = new List<UserViewModel>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                var userViewModel = new UserViewModel
+                {
+                    Id = user.Id,
+                    FullName = user.UserName,
+                    EmailAddress = user.Email,
+                    Phone = user.PhoneNumber,
+                    Roles = roles.ToList(),
+                };
+
+                usersWithRoles.Add(userViewModel);
+            }
+
+            return usersWithRoles;
+        }
+
         [HttpGet("profile")]
-        public IActionResult GetUserProfile()
+        public async Task<IActionResult> GetUserProfileAsync()
         {
             var user = (Models.User)HttpContext.Items["User"];
             if (user == null)
@@ -36,6 +61,19 @@ namespace CVRecruitment.Controllers
             }
 
             return Ok(user);
+        }
+
+        [HttpGet("getRoles")]
+        public async Task<IActionResult> GetUserRoles()
+        {
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return Ok(roles);
         }
 
         [HttpPut("update")]
