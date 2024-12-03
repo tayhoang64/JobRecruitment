@@ -315,10 +315,6 @@ namespace CVRecruitment.Controllers
                 return "A valid EmailOwner is required.";
             }
 
-            if (string.IsNullOrEmpty(companyViewModel.CompanySize) || !int.TryParse(companyViewModel.CompanySize, out int companySize) || companySize <= 0)
-            {
-                return "CompanySize must be a positive integer.";
-            }
             return null;
         }
 
