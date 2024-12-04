@@ -17,5 +17,7 @@
 
         public DateTime? LastUpdatedAt { get; set; }
 
+        public string? Image {  get; set; }
+
         public virtual ICollection<Cv> Cvs { get; set; } = new List<Cv>();
     }

@@ -1,7 +1,9 @@
-﻿using CVRecruitment.Models;
+﻿using CloudinaryDotNet.Actions;
+using CVRecruitment.Models;
 using CVRecruitment.Services;
 using CVRecruitment.ViewModels;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.DotNet.Scaffolding.Shared.Messaging;
@@ -45,14 +47,41 @@ namespace CVRecruitment.Controllers
 
 
         [HttpGet]
-        public async Task<IEnumerable<Template>> GetAll()
+        public async Task<IActionResult> GetAll()
         {
-            return await _context.Templates.ToListAsync();
+            var templates = await _context.Templates.ToListAsync();
+            List<TemplateResponse> response = new List<TemplateResponse>();
+            foreach (var item in templates)
+            {
+                response.Add(new TemplateResponse() { 
+                    TemplateId = item.TemplateId,
+                    Title = item.Title,
+                    File = item.File,
+                    CreatedAt = item.CreatedAt,
+                    UploadedBy = item.UploadedBy,
+                    LastUpdatedAt = item.LastUpdatedAt,
+                    Image = item.Image,
+                    User = await _context.Users.FirstOrDefaultAsync(u => u.Id == item.UploadedBy)
+                });
+
+            }
+            return Ok(response);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var template = await _context.Templates.FirstOrDefaultAsync(t => t.TemplateId == id);
+            if(template == null)
+            {
+                return NotFound("Template not found");
+            }
+            return Ok(template);
         }
 
         [HttpPost]
 
-        public async Task<IActionResult> CreateTemplate([FromForm] TemplateViewModel templateViewModel, IFormFile file)
+        public async Task<IActionResult> CreateTemplate([FromForm] TemplateViewModel templateViewModel, IFormFile file, IFormFile image)
         {
             var (user, roleCheckResult) = await CheckCvDecoratorRoleAsync();
             if (roleCheckResult != null) 
@@ -85,6 +114,19 @@ namespace CVRecruitment.Controllers
                 template.File = fileUrl;
             }
 
+            if (image != null)
+            {
+                string imageUrl;
+                try
+                {
+                    imageUrl = await _cloudinaryService.UploadImageAsync(image, Enums.Templates);
+                }
+                catch (Exception ex) {
+                    return BadRequest("Image upload failed. Please try again.");
+                }
+                template.Image = imageUrl;
+            }
+
             _context.Templates.Add(template);
             await _context.SaveChangesAsync();
             return Ok(new
@@ -94,7 +136,7 @@ namespace CVRecruitment.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTemplate(int id, [FromForm] TemplateViewModel templateViewModel, IFormFile? file)
+        public async Task<IActionResult> UpdateTemplate(int id, [FromForm] TemplateViewModel templateViewModel, IFormFile? file, IFormFile? image)
         {
             var (user, roleCheckResult) = await CheckCvDecoratorRoleAsync();
             if (roleCheckResult != null)
@@ -134,6 +176,20 @@ namespace CVRecruitment.Controllers
                 {
                     return BadRequest("File upload failed. Please try again.");
                 }
+                template.File = fileUrl;
+            }
+            if (image != null)
+            {
+                string imageUrl;
+                try
+                {
+                    imageUrl = await _cloudinaryService.UploadImageAsync(image, Enums.Templates);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest("Image upload failed. Please try again.");
+                }
+                template.Image = imageUrl;
             }
 
             _context.Entry(template).State = EntityState.Modified;
