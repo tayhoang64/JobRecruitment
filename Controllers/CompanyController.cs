@@ -241,6 +241,29 @@ namespace CVRecruitment.Controllers
             _context.Companies.Update(company);
             await _context.SaveChangesAsync();
 
+            var owner = _userManager.FindByEmailAsync(company.EmailOwner);
+            if (owner == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+
+            var currentRoles = await _userManager.GetRolesAsync(owner.Result);
+
+            if (currentRoles.Count > 0)
+            {
+                var removeResult = await _userManager.RemoveFromRolesAsync(owner.Result, currentRoles);
+                if (!removeResult.Succeeded)
+                {
+                    return BadRequest("Failed to remove old roles.");
+                }
+            }
+
+            var addRoleResult = await _userManager.AddToRoleAsync(owner.Result, "CompanyOwner");
+            if (!addRoleResult.Succeeded)
+            {
+                return BadRequest("Failed to add new role.");
+            }
+
             return Ok(company);
         }
 
@@ -250,33 +273,47 @@ namespace CVRecruitment.Controllers
             var user = (Models.User)HttpContext.Items["User"];
             if (user == null) return Unauthorized(new { message = "Invalid token" });
 
-            // Check if user is admin
             var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
             if (!isAdmin)
             {
                 return Forbid("You do not have permission to perform this action.");
             }
 
-            // 1. Find company that has not been confirmed
-            var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == id);
+            var company = await _context.Companies
+                .Include(c => c.Jobs)
+                    .ThenInclude(j => j.Skills)      
+                .Include(c => c.Jobs)
+                    .ThenInclude(j => j.Recruitments) 
+                .Include(c => c.CompanyImages)     
+                .FirstOrDefaultAsync(c => c.CompanyId == id);
+
             if (company == null)
             {
                 return NotFound("Company not found");
             }
 
-            // Remove associated company images directly from the database
-            var companyImages = await _context.CompanyImages.Where(c => c.CompanyId == company.CompanyId).ToListAsync();
-            _context.CompanyImages.RemoveRange(companyImages);
+            foreach (var job in company.Jobs)
+            {
+                var jobSkills = await _context.Set<Dictionary<string, object>>("JobSkill")
+                    .Where(js => EF.Property<int>(js, "JobId") == job.JobId)
+                    .ToListAsync();
+                _context.Set<Dictionary<string, object>>("JobSkill").RemoveRange(jobSkills);
 
-            // Save changes for image deletions
+                _context.Recruitments.RemoveRange(job.Recruitments);
+            }
+
+            _context.Jobs.RemoveRange(company.Jobs);
+
+            _context.CompanyImages.RemoveRange(company.CompanyImages);
+
             await _context.SaveChangesAsync();
 
-            // 2. Delete the company
             _context.Companies.Remove(company);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Deleted Successfully" }); 
+            return Ok(new { message = "Deleted Successfully" });
         }
+
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Company>> GetCompany(int id)
@@ -284,6 +321,20 @@ namespace CVRecruitment.Controllers
             var company = await _context.Companies.Include(c => c.CompanyImages).FirstOrDefaultAsync(c => c.CompanyId == id);
             if (company == null) return NotFound(new { error = "Not Found" });
             return Ok(company);
+        }
+
+        [HttpGet("get-own-companies")]
+        public async Task<IActionResult> GetOwnCompanies()
+        {
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null) return Unauthorized(new { message = "Invalid token" });
+
+            var isInRole = await _userManager.IsInRoleAsync(user, "CompanyOwner");
+            if (!isInRole)
+            {
+                return Forbid("You do not have permission to perform this action.");
+            }
+            return Ok(_context.Companies.Where(c => c.EmailOwner == user.Email).ToList());
         }
 
 

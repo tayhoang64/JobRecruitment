@@ -176,5 +176,47 @@ namespace CVRecruitment.Controllers
             };
         }
 
+        private async Task<(Models.User user, IActionResult result)> CheckStaffRole(int companyId, int staffRole)
+        {
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
+            {
+                return (null, Unauthorized(new { message = "Invalid token" }));
+            }
+            var getRolesStaff = _context.Staffs.Where(s => s.CompanyId == companyId && s.UserId == user.Id).ToList();
+            if (getRolesStaff.Count == 0)
+            {
+                return (null, Forbid());
+            }
+            foreach (var role in getRolesStaff) {
+                if(role.Role == staffRole)
+                {
+                    return (user, null);
+                }
+            }
+            return (null, Forbid());
+        }
+
+        [HttpGet("checkCC/{id}")]
+        public async Task<IActionResult> IsContentCreator(int id)
+        {
+            var (_, result) = await CheckStaffRole(id, Enums.StaffContentCreator);
+            if (result != null) {
+                return result;
+            }
+            return Ok();
+        }
+
+        [HttpGet("checkHR/{id}")]
+        public async Task<IActionResult> IsHR(int id)
+        {
+            var (_, result) = await CheckStaffRole(id, Enums.StaffHR);
+            if (result != null)
+            {
+                return result;
+            }
+            return Ok();
+        }
+
     }
 }

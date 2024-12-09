@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using CloudinaryDotNet.Actions;
 using CVRecruitment.Models;
 using CVRecruitment.Services;
+using CVRecruitment.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.Elfie.Model.Strings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -21,15 +24,16 @@ namespace CVRecruitment.Controllers
         private readonly CvrecruitmentContext _context;
         private readonly CloudinaryService _cloudinaryService;
         private readonly UserManager<User> _userManager;
+        private readonly FileService _fileService;
 
-        public CVController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager)
+        public CVController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager, FileService fileService)
         {
             _configuration = configuration;
             _context = context;
             _cloudinaryService = cloudinaryService;
             _userManager = userManager;
+            _fileService = fileService;
         }
-
 
         private async Task<(Models.User user, IActionResult result)> CheckUserRoleAsync()
         {
@@ -46,132 +50,153 @@ namespace CVRecruitment.Controllers
             return (user, null);
         }
 
-
-        [HttpGet("Saved")]
-        public async Task<IActionResult> GetSavedCVs()
+        private async Task<string> SaveCV(CVViewModel cVViewModel)
         {
-            var (user, roleCheckResult) = await CheckUserRoleAsync();
-            if (roleCheckResult != null)
-            {
-                return roleCheckResult;
-            }
             try
             {
-                ClaimsPrincipal us = HttpContext.User;
-                User currentUser = await _userManager.GetUserAsync(us);
+                var fileName = $"CV_{cVViewModel.UserId}_{Guid.NewGuid()}.html";
+                var filePath = Path.Combine("Public", "CVs", fileName);
 
-                List<Cv> cvs = await _context.Cvs
-                    .Include(c => c.Template)
-                    .Where(c => c.UserId == currentUser.Id)
-                    .ToListAsync();
-
-                return Ok(cvs);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An error occurred while retrieving saved CVs.", error = ex.Message });
-            }
-        }
-        [HttpPost("SaveCV")]
-        public async Task<IActionResult> SaveCV([FromBody] string htmlBody, int templateId)
-        {
-            var (user, roleCheckResult) = await CheckUserRoleAsync();
-            if (roleCheckResult != null)
-            {
-                return roleCheckResult;
-            }
-            try
-            {
-                ClaimsPrincipal us = HttpContext.User;
-                User currentUser = await _userManager.GetUserAsync(us);
-
-                string filename = await _cloudinaryService.SaveFileWithExtension("html", "cvs", htmlBody);
-                Cv cv = new Cv
+                var directory = Path.GetDirectoryName(filePath);
+                if (!Directory.Exists(directory))
                 {
-                    File = filename,
-                    LastUpdateAt = DateTime.Now,
-                    CreatedAt = DateTime.Now,
-                    UserId = currentUser.Id,
-                    TemplateId = templateId,
-                };
-
-                _context.Cvs.Add(cv);
-                await _context.SaveChangesAsync();
-
-                return CreatedAtAction(nameof(GetSavedCVs), new { id = cv.Cvid }, cv);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Error saving CV", error = ex.Message });
-            }
-        }
-
-        [HttpPut]
-
-
-        [HttpPut("SaveEditedCV")]
-        public async Task<IActionResult> SaveEditedCV([FromBody] string htmlBody, int cvId)
-        {
-
-            var (user, roleCheckResult) = await CheckUserRoleAsync();
-            if (roleCheckResult != null)
-            {
-                return roleCheckResult;
-            }
-            try
-            {
-                ClaimsPrincipal us = HttpContext.User;
-                User currentUser = await _userManager.GetUserAsync(us);
-
-                string filename = await _cloudinaryService.SaveFileWithExtension("html", "cvs", htmlBody);
-                Cv? cv = await _context.Cvs.FirstOrDefaultAsync(c => c.Cvid == cvId && c.UserId == currentUser.Id);
-
-                if (cv == null)
-                {
-                    return NotFound(new { message = "CV not found" });
+                    Directory.CreateDirectory(directory);
                 }
 
-                cv.LastUpdateAt = DateTime.Now;
-                cv.File = filename;
+                await System.IO.File.WriteAllTextAsync(filePath, cVViewModel.HtmlContent);
 
+                return $"/public/{Enums.CVs}/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error when creating html file");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMyCV()
+        {
+            var (user, result) = await CheckUserRoleAsync();
+            if (result != null)
+            {
+                return result;
+            }
+
+            var myCVs = await _context.Cvs.Where(c => c.UserId == user.Id).ToListAsync();
+
+            return Ok(myCVs);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateCV(CVViewModel cVViewModel)
+        {
+            var (user, result) = await CheckUserRoleAsync();
+            if (result != null)
+            {
+                return result;
+            }
+            try
+            {
+                var fileUrl = SaveCV(cVViewModel);
+                Cv cv = new Cv()
+                {
+                    UserId = user.Id,
+                    TemplateId = cVViewModel.TemplateId,
+                    CreatedAt = DateTime.Now,
+                    LastUpdateAt = DateTime.Now,
+                    File = fileUrl.Result,
+                };
+                _context.Cvs.Add(cv);
                 await _context.SaveChangesAsync();
-
                 return Ok(cv);
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An error occurred while editing the CV.", error = ex.Message });
+                return BadRequest(ex.Message);
             }
         }
 
-
-
-        [HttpDelete("Delete/{id}")]
-        public async Task<IActionResult> DeleteCv(int id)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateCV(int id, CVViewModel cVViewModel)
         {
-            var (user, roleCheckResult) = await CheckUserRoleAsync();
-            if (roleCheckResult != null)
+            var (user, result) = await CheckUserRoleAsync();
+            if (result != null)
             {
-                return roleCheckResult;
+                return result;
             }
+            var findCv = await _context.Cvs.FirstOrDefaultAsync(c => c.Cvid == id);
+            if (findCv == null)
+            {
+                return NotFound("CV not found");
+            }
+            if (findCv.UserId != user.Id)
+            {
+                return Forbid();
+            }
+
+            //logic
             try
             {
-                Cv? cv = await _context.Cvs.FirstOrDefaultAsync(c => c.Cvid == id);
-
-                if (cv == null)
+                var resultDelete = _fileService.DeleteFile(Enums.CVs, findCv.File.Split("/")[^1]);
+                if (!resultDelete)
                 {
-                    return NotFound(new { message = "CV not found" });
+                    return StatusCode(500, "Can't delete file");
                 }
-
-                _context.Cvs.Remove(cv);
+                var fileUrl = SaveCV(cVViewModel);
+                findCv.File = fileUrl.Result;
+                findCv.LastUpdateAt = DateTime.Now;
                 await _context.SaveChangesAsync();
-
-                return Ok(new { message = "CV deleted successfully" });
+                return Ok(findCv);
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Error deleting CV", error = ex.Message });
+                return BadRequest(ex.Message);
             }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCV(int id)
+        {
+            var (user, result) = await CheckUserRoleAsync();
+            if (result != null)
+            {
+                return result;
+            }
+            var findCv = await _context.Cvs.FirstOrDefaultAsync(c => c.Cvid == id);
+            if (findCv == null)
+            {
+                return NotFound("CV not found");
+            }
+            if (findCv.UserId != user.Id)
+            {
+                return Forbid();
+            }
+
+            //logic
+            var resultDelete = _fileService.DeleteFile(Enums.CVs, findCv.File.Split("/")[^1]);
+            if (!resultDelete)
+            {
+                return StatusCode(500, "Can't delete file");
+            }
+            _context.Cvs.Remove(findCv);
+            await _context.SaveChangesAsync();
+            return Ok("Deleted successfully");
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var (user, result) = await CheckUserRoleAsync();
+            if (result != null)
+            {
+                return result;
+            }
+            var findCv = await _context.Cvs.FirstOrDefaultAsync(c => c.Cvid == id);
+            if (findCv == null)
+            {
+                return NotFound("CV not found");
+            }
+            return Ok(findCv);
         }
     }
 }

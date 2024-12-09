@@ -49,5 +49,21 @@
             DeleteFile(folder, oldFileName);
             return await UploadHtmlAsync(newFile, folder);
         }
+
+        public async Task<string> ReadFileContentAsync(string folder, string fileName)
+        {
+            string filePath = Path.Combine(_basePublicPath, folder, fileName);
+
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException("File not found.", fileName);
+            }
+
+            using (var reader = new StreamReader(filePath))
+            {
+                return await reader.ReadToEndAsync();
+            }
+        }
+
     }
 }
