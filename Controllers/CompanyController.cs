@@ -119,11 +119,11 @@ namespace CVRecruitment.Controllers
         public async Task<ActionResult<Company>> UpdateCompany(int id, CompanyViewModel companyViewModel)
         {
             //Check
-            var validationResult = ValidateCompanyViewModel(companyViewModel);
-            if (!string.IsNullOrEmpty(validationResult))
-            {
-                return BadRequest(validationResult);
-            }
+            //var validationResult = ValidateCompanyViewModel(companyViewModel);
+            //if (!string.IsNullOrEmpty(validationResult))
+            //{
+            //    return BadRequest(validationResult);
+            //}
             //check login
             var user = (Models.User)HttpContext.Items["User"];
             if (user == null) return Unauthorized(new { message = "Invalid token" });

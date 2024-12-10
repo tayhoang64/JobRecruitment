@@ -16,7 +16,7 @@ namespace CVRecruitment.ViewModels
         public string? EmailOwner { get; set; }
         public string? HotLine { get; set; }
         public string? Website { get; set; }
-        public IFormFile Logo { get; set; }
-        public IFormFile[] CompanyImages { get; set; }
+        public IFormFile? Logo { get; set; }
+        public IFormFile[]? CompanyImages { get; set; }
     }
 }
