@@ -198,5 +198,16 @@ namespace CVRecruitment.Controllers
             }
             return Ok(findCv);
         }
+
+        [HttpGet("{id}/html")]
+        public async Task<IActionResult> GetHtmlContent(int id)
+        {
+            var cv = await _context.Cvs.FirstOrDefaultAsync(t => t.Cvid == id);
+            if (cv == null)
+            {
+                return NotFound("CV not found");
+            }
+            return Ok(_fileService.ReadFileContentAsync(Enums.CVs, cv.File.Split('/').Last()).Result);
+        }
     }
 }

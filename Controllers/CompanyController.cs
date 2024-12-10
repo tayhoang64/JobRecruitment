@@ -167,6 +167,10 @@ namespace CVRecruitment.Controllers
 
             if (companyViewModel.CompanyImages != null && companyViewModel.CompanyImages.Length > 0)
             {
+
+                var oldCompanyImages = _context.CompanyImages.Where(i => i.CompanyId == company.CompanyId).ToList();
+                _context.CompanyImages.RemoveRange(oldCompanyImages);
+                await _context.SaveChangesAsync();
                 foreach (var image in companyViewModel.CompanyImages)
                 {
                     string imgUrl;
@@ -180,9 +184,9 @@ namespace CVRecruitment.Controllers
                     }
                     var companyImage = new CompanyImage { File = imgUrl, CompanyId = company.CompanyId };
                     company.CompanyImages.Add(companyImage);
+                    await _context.SaveChangesAsync();
                 }
             }
-            await _context.SaveChangesAsync();
 
             var responseCompany = new
             {
@@ -334,7 +338,7 @@ namespace CVRecruitment.Controllers
             {
                 return Forbid("You do not have permission to perform this action.");
             }
-            return Ok(_context.Companies.Where(c => c.EmailOwner == user.Email).ToList());
+            return Ok(_context.Companies.Include(c => c.CompanyImages).Where(c => c.EmailOwner == user.Email).ToList());
         }
 
 
