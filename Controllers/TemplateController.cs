@@ -79,6 +79,17 @@ namespace CVRecruitment.Controllers
             return Ok(template);
         }
 
+        [HttpGet("{id}/html")]
+        public async Task<IActionResult> GetHtmlContent(int id)
+        {
+            var template = await _context.Templates.FirstOrDefaultAsync(t => t.TemplateId == id);
+            if (template == null)
+            {
+                return NotFound("Template not found");
+            }
+            return Ok(_fileService.ReadFileContentAsync(Enums.Templates, template.File.Split('/').Last()).Result);
+        }
+
         [HttpPost]
 
         public async Task<IActionResult> CreateTemplate([FromForm] TemplateViewModel templateViewModel, IFormFile file, IFormFile image)
@@ -217,6 +228,11 @@ namespace CVRecruitment.Controllers
             {
                 return NotFound(new { message = "Template not found." });
             }
+
+            var cvs = _context.Cvs.Where(c => c.TemplateId == template.TemplateId).ToList();
+            _context.Cvs.RemoveRange(cvs);
+            await _context.SaveChangesAsync();
+
             var result = _fileService.DeleteFile(Enums.Templates, template.File.Split("/")[^1]);
             if (!result)
             {

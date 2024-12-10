@@ -46,11 +46,7 @@ namespace CVRecruitment.Controllers
                 return result;
             }
 
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
+ 
             Certificate newCertificate = new Certificate()
             {
                 CertificateName = certificate.CertificateName,
