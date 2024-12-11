@@ -1,4 +1,6 @@
-﻿using CVRecruitment.Models;
+﻿using System.ComponentModel.Design;
+using System.Linq;
+using CVRecruitment.Models;
 using CVRecruitment.Services;
 using CVRecruitment.ViewModels;
 using Microsoft.AspNetCore.Http;
@@ -21,6 +23,46 @@ namespace CVRecruitment.Controllers
             _configuration = configuration;
             _context = context;
             _userManager = userManager;
+        }
+
+        [HttpGet("checkCC")]
+        public async Task<IActionResult> CheckCCWithoutCompanyId()
+        {
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+            var getRolesStaff = await _context.Staffs.Where(s => s.UserId == user.Id).ToListAsync();
+            if (getRolesStaff.Count == 0)
+            {
+                return Forbid();
+            }
+            return Ok();
+        }
+
+        [HttpGet("companies")]
+        public async Task<IActionResult> GetCompanies()
+        {
+            var user = (Models.User)HttpContext.Items["User"];
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+            var getRolesStaff = _context.Staffs.Where(s => s.UserId == user.Id).ToList();
+            if (getRolesStaff.Count == 0)
+            {
+                return Forbid();
+            }
+
+            var companyIds = await _context.Staffs
+                .Where(s => s.UserId == user.Id)
+                .GroupBy(s => s.CompanyId)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            var companies = await _context.Companies.Where(c => companyIds.Contains(c.CompanyId)).ToListAsync();
+            return Ok(companies);
         }
 
         [HttpPost]

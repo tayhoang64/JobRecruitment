@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Authentication;
 using CloudinaryDotNet;
 using System.Text.Json.Serialization;
 using Microsoft.OpenApi.Models;
+using Rotativa.AspNetCore;
+using DinkToPdf.Contracts;
+using DinkToPdf;
 
 var builder = WebApplication.CreateBuilder(args);
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -125,9 +128,12 @@ builder.Services.AddSwaggerGen(option =>
     });
 });
 builder.Services.AddScoped<CloudinaryService>();
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+
+
 
 app.UseStaticFiles(new StaticFileOptions
 {

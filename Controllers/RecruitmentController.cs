@@ -15,13 +15,15 @@ namespace CVRecruitment.Controllers
         private readonly CvrecruitmentContext _context;
         private readonly CloudinaryService _cloudinaryService;
         private readonly UserManager<User> _userManager;
+        private readonly FileService _fileService;
 
-        public RecruitmentController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager)
+        public RecruitmentController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager, FileService fileService)
         {
             _configuration = configuration;
             _context = context;
             _cloudinaryService = cloudinaryService;
             _userManager = userManager;
+            _fileService = fileService;
         }
 
         private async Task<(Models.User user, IActionResult result)> CheckLogin()
@@ -34,8 +36,23 @@ namespace CVRecruitment.Controllers
             return (user, null);
         }
 
-        [HttpDelete]
-        public async Task<IActionResult> CancelApply(RecruitmentViewModel recruitmentViewModel)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var (user, result) = await CheckLogin();
+            if (result != null)
+            {
+                return result;
+            }
+            var recruitment = _context.Recruitments.FirstOrDefault(r => r.UserId == user.Id && r.JobId == id);
+            if (recruitment == null) {
+                return NotFound("Recruitment not found");
+            }
+            return Ok(recruitment);
+        }
+
+        [HttpDelete("{jobId}")]
+        public async Task<IActionResult> CancelApply(int jobId)
         {
             //check
             var (user, result) = await CheckLogin();
@@ -43,19 +60,17 @@ namespace CVRecruitment.Controllers
             {
                 return result;
             }
-            if(user.Id != recruitmentViewModel.UserId)
+            var recruitment = _context.Recruitments.FirstOrDefault(r => r.JobId == jobId && r.UserId == user.Id);
+            if(recruitment == null)
             {
-                return BadRequest(new
-                {
-                    error = "You can't cancel other application"
-                });
+                return NotFound("recruitment not found");
             }
-            var job = _context.Jobs.FirstOrDefault(j => j.JobId == recruitmentViewModel.JobId);
+            var job = _context.Jobs.FirstOrDefault(j => j.JobId == recruitment.JobId);
             if (job == null)
             {
                 return NotFound("Job not found");
             }
-            var checkApply = _context.Recruitments.FirstOrDefault(j => j.UserId == user.Id && j.JobId == recruitmentViewModel.JobId);
+            var checkApply = _context.Recruitments.FirstOrDefault(j => j.UserId == user.Id && j.JobId == recruitment.JobId);
             if (checkApply == null)
             {
                 return BadRequest(new
@@ -101,7 +116,7 @@ namespace CVRecruitment.Controllers
             string cvLink;
             try
             {
-                cvLink = await _cloudinaryService.UploadImageAsync(recruitmentViewModel.FormFile, Enums.CVs);
+                cvLink = await _fileService.UploadHtmlAsync(recruitmentViewModel.FormFile, Enums.CVs);
             }
             catch (Exception ex)
             {

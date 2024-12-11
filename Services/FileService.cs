@@ -11,9 +11,9 @@
 
         public async Task<string> UploadHtmlAsync(IFormFile file, string folder)
         {
-            if (file == null || file.Length == 0 || file.ContentType != "text/html")
+            if (file == null || file.Length == 0 || (file.ContentType != "text/html" && file.ContentType != "application/pdf"))
             {
-                throw new ArgumentException("Invalid HTML file.");
+                throw new ArgumentException("Invalid HTML or PDF file.");
             }
 
             string targetFolder = Path.Combine(_basePublicPath, folder);

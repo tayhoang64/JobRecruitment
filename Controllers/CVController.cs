@@ -7,12 +7,15 @@ using CloudinaryDotNet.Actions;
 using CVRecruitment.Models;
 using CVRecruitment.Services;
 using CVRecruitment.ViewModels;
+using DinkToPdf;
+using DinkToPdf.Contracts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.CodeAnalysis.Elfie.Model.Strings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Rotativa.AspNetCore;
 
 namespace CVRecruitment.Controllers
 {
@@ -25,14 +28,16 @@ namespace CVRecruitment.Controllers
         private readonly CloudinaryService _cloudinaryService;
         private readonly UserManager<User> _userManager;
         private readonly FileService _fileService;
+        private readonly IConverter _converter;
 
-        public CVController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager, FileService fileService)
+        public CVController(IConfiguration configuration, CvrecruitmentContext context, CloudinaryService cloudinaryService, UserManager<User> userManager, FileService fileService, IConverter converter)
         {
             _configuration = configuration;
             _context = context;
             _cloudinaryService = cloudinaryService;
             _userManager = userManager;
             _fileService = fileService;
+            _converter = converter;
         }
 
         private async Task<(Models.User user, IActionResult result)> CheckUserRoleAsync()
@@ -208,6 +213,39 @@ namespace CVRecruitment.Controllers
                 return NotFound("CV not found");
             }
             return Ok(_fileService.ReadFileContentAsync(Enums.CVs, cv.File.Split('/').Last()).Result);
+        }
+
+        [HttpGet("{id}/download")]
+        public async Task<IActionResult> DownloadPdf(int id)
+        {
+            var cv = await _context.Cvs.FirstOrDefaultAsync(t => t.Cvid == id);
+            if (cv == null)
+            {
+                return NotFound("CV not found");
+            }
+            var globalSettings = new GlobalSettings
+            {
+                ColorMode = ColorMode.Color,
+                Orientation = Orientation.Portrait,
+                PaperSize = PaperKind.A4,
+                Margins = new MarginSettings { Top = 10 },
+                DocumentTitle = "PDF Document"
+            };
+
+            var objectSettings = new ObjectSettings
+            {
+                HtmlContent = _fileService.ReadFileContentAsync(Enums.CVs, cv.File.Split('/').Last()).Result,
+                WebSettings = { DefaultEncoding = "utf-8" }
+            };
+
+            var pdf = new HtmlToPdfDocument()
+            {
+                GlobalSettings = globalSettings,
+                Objects = { objectSettings }
+            };
+
+            var file = _converter.Convert(pdf);
+            return File(file, "application/pdf", "CV.pdf");
         }
     }
 }

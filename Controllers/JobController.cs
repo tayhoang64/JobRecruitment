@@ -217,6 +217,52 @@ namespace CVRecruitment.Controllers
             return Ok();
         }
 
+        [HttpGet("company/{id}")]
+        public async Task<IActionResult> GetJobsByCompanyId(int id)
+        {
+            var activeJobs = await _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Skills)
+                .Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull && j.CompanyId == id)
+                .ToListAsync();
+
+            var jobs = activeJobs.Select(job => new JobResponse
+            {
+                JobId = job.JobId,
+                JobName = job.JobName,
+                Salary = job.Salary,
+                Location = job.Location,
+                WorkStyle = job.WorkStyle,
+                PostedDay = job.PostedDay,
+                Description = job.Description,
+                EndDay = job.EndDay,
+                ExperienceYear = job.ExperienceYear,
+                RecruitmentCount = job.RecruitmentCount,
+                Status = job.Status,
+                Company = new Company
+                {
+                    CompanyId = job.Company.CompanyId,
+                    CompanyName = job.Company.CompanyName,
+                    Address = job.Company.Address,
+                    Description = job.Company.Description,
+                    CompanyType = job.Company.CompanyType,
+                    CompanySize = job.Company.CompanySize,
+                    CompanyCountry = job.Company.CompanyCountry,
+                    WorkingDay = job.Company.WorkingDay,
+                    OvertimePolicy = job.Company.OvertimePolicy,
+                    Logo = job.Company.Logo,
+                    ConfirmCompany = job.Company.ConfirmCompany,
+                },
+                Skills = job.Skills.Select(skill => new Skill
+                {
+                    SkillId = skill.SkillId,
+                    SkillName = skill.SkillName,
+                }).ToList()
+            });
+
+            return Ok(jobs);
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteJob(int id, JobViewModel jobViewModel)
         {
