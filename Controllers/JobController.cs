@@ -58,13 +58,32 @@ namespace CVRecruitment.Controllers
         }
 
         [HttpGet]
-        public async Task<IEnumerable<JobResponse>> GetAllActiveJobs()
+        public async Task<IActionResult> GetAllActiveJobs(int? page = null, int? pageSize = null, string? keyword = null)
         {
-            var activeJobs = await _context.Jobs
+            var query = _context.Jobs
                 .Include(j => j.Company)
                 .Include(j => j.Skills)
                 .Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull)
-                .ToListAsync();
+                .OrderByDescending(j => j.PostedDay); 
+
+            //search
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = (IOrderedQueryable<Job>)query.Where(j => j.JobName.Contains(keyword)
+                                          || j.Description.Contains(keyword)
+                                          || j.Company.CompanyName.Contains(keyword));
+            }
+
+            var totalJobs = await query.CountAsync();
+
+            if (page.HasValue && pageSize.HasValue)
+            {
+                query = (IOrderedQueryable<Job>)query
+                    .Skip((page.Value - 1) * pageSize.Value)
+                    .Take(pageSize.Value);
+            }
+
+            var activeJobs = await query.ToListAsync();
 
             var jobs = activeJobs.Select(job => new JobResponse
             {
@@ -100,8 +119,12 @@ namespace CVRecruitment.Controllers
                 }).ToList()
             });
 
-            return jobs;
+            return Ok(new
+            {
+                jobs 
+            });
         }
+
 
 
         [HttpPost]
@@ -412,6 +435,101 @@ namespace CVRecruitment.Controllers
             return jobs;
         }
 
+        [HttpGet("RecommendJobs")]
+        public async Task<IActionResult> GetRecommendedJobsForUser(int page = 1, int pageSize = 10, string? keyword = null)
+        {
+            var userContext = (Models.User)HttpContext.Items["User"];
+            if (userContext == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+
+            var user = await _userManager.FindByIdAsync(userContext.Id.ToString());
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+
+            var userSkills = await _context.MySkills
+                .Include(us => us.Skill)
+                .Where(us => us.UserId == user.Id)
+                .Select(us => us.Skill)
+                .ToListAsync();
+
+            IQueryable<Job> query;
+
+            if (!userSkills.Any())
+            {
+                query = _context.Jobs
+                    .Include(j => j.Company)
+                    .Include(j => j.Skills)
+                    .Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull);
+            }
+            else
+            {
+                query = _context.Jobs
+                    .Include(j => j.Company)
+                    .Include(j => j.Skills)
+                    .Where(j => DateTime.Now < j.EndDay && j.Status != Enums.StatusFull &&
+                                j.Skills.Any(skill => userSkills.Select(us => us.SkillId).Contains(skill.SkillId)));
+            }
+
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(j => j.JobName.Contains(keyword) || j.Description.Contains(keyword) ||
+                                         j.Company.CompanyName.Contains(keyword));
+            }
+
+            var totalJobs = await query.CountAsync();
+
+            var jobs = await query
+                .OrderByDescending(j => j.PostedDay)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var jobResponses = jobs.Select(job => new JobResponse
+            {
+                JobId = job.JobId,
+                JobName = job.JobName,
+                Salary = job.Salary,
+                Location = job.Location,
+                WorkStyle = job.WorkStyle,
+                PostedDay = job.PostedDay,
+                Description = job.Description,
+                EndDay = job.EndDay,
+                ExperienceYear = job.ExperienceYear,
+                RecruitmentCount = job.RecruitmentCount,
+                Status = job.Status,
+                Company = new Company
+                {
+                    CompanyId = job.Company.CompanyId,
+                    CompanyName = job.Company.CompanyName,
+                    Address = job.Company.Address,
+                    Description = job.Company.Description,
+                    CompanyType = job.Company.CompanyType,
+                    CompanySize = job.Company.CompanySize,
+                    CompanyCountry = job.Company.CompanyCountry,
+                    WorkingDay = job.Company.WorkingDay,
+                    OvertimePolicy = job.Company.OvertimePolicy,
+                    Logo = job.Company.Logo,
+                    ConfirmCompany = job.Company.ConfirmCompany,
+                },
+                Skills = job.Skills.Select(skill => new Skill
+                {
+                    SkillId = skill.SkillId,
+                    SkillName = skill.SkillName,
+                }).ToList()
+            });
+
+            return Ok(new
+            {
+                totalJobs,
+                page,
+                pageSize,
+                jobs = jobResponses
+            });
+        }
 
 
     }
